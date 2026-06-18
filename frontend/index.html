@@ -622,23 +622,28 @@ analyzeBtn.addEventListener('click', async () => {
   }
 });
 
-
+// The free-tier backend sleeps after inactivity and takes ~30-50s to wake on
+// the first request. We retry the health check for up to 70s before giving up.
 async function wakeBackend() {
   loaderText.textContent = 'Connecting to server...';
 
   const slowNoticeTimer = setTimeout(() => {
-    loaderText.textContent = "Waking up the backend — this takes up to a minute after inactivity. Hang tight...";
+    loaderText.textContent = "Waking up the backend — this can take 1-3 minutes after inactivity. Hang tight...";
   }, 4000);
 
-  const deadline = Date.now() + 70000; 
-  const retryInterval = 5000;     
+  const deadline = Date.now() + 180000; // 3 minute total timeout
+  const retryInterval = 5000;
 
   try {
     while (Date.now() < deadline) {
       try {
-        const resp = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(6000) });
-        if (resp.ok) return;
+        const resp = await fetch(`${API_BASE}/health`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(8000),
+        });
+        if (resp.ok) return; // backend is up
       } catch (e) {
+        // still waking, retry
       }
       if (Date.now() + retryInterval < deadline) {
         await new Promise(r => setTimeout(r, retryInterval));
