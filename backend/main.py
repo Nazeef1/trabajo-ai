@@ -1,6 +1,5 @@
 """
 Trabajo AI FastAPI backend.
-
 Endpoints:
   POST /api/analyze  -> upload one resume (PDF or text) + multiple JDs (text),
                          run the agent pipeline for each JD, return ranked results.
@@ -25,8 +24,7 @@ load_dotenv()
 
 app = FastAPI(title="Trabajo AI API")
 
-# Allowed frontend origins. Defaults cover local dev; in production, set
-# ALLOWED_ORIGINS as a comma-separated env var (e.g. your GitHub Pages URL).
+
 _default_origins = "http://localhost:8000,http://127.0.0.1:8000,http://localhost:5500,http://127.0.0.1:5500"
 allowed_origins = os.environ.get("ALLOWED_ORIGINS", _default_origins).split(",")
 allowed_origins = [o.strip() for o in allowed_origins if o.strip()]

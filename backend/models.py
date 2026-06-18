@@ -24,7 +24,7 @@ class ParsedJD(BaseModel):
 
 
 class GapItem(BaseModel):
-    category: str  # e.g. "skill", "experience", "qualification"
+    category: str  # "skill", "experience", "qualification"
     description: str
     severity: str  # "critical", "moderate", "minor"
 

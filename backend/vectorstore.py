@@ -1,17 +1,6 @@
 """
 Vector store layer (RAG component).
-
-Why this exists rather than just feeding the whole resume into the prompt:
-when a resume is long, or when we eventually scale this to multiple resumes,
-we don't want to stuff everything into context. Instead, the resume is
-chunked into semantic sections (experience bullets, projects, skills, etc.)
-and embedded. For each JD requirement, we retrieve only the most relevant
-chunks before asking the LLM to reason about the match. This keeps the
-reasoning grounded in retrieved evidence rather than the model's full,
-unfiltered view of the resume — which is the actual point of RAG.
-
-Uses ChromaDB's default embedding function (ONNX MiniLM under the hood,
-bundled with chromadb) — no torch / sentence-transformers dependency needed.
+Uses ChromaDB's default embedding function (ONNX MiniLM under the hood, bundled with chromadb).
 """
 import re
 import uuid
@@ -25,21 +14,19 @@ def chunk_resume(raw_text: str) -> list[str]:
     fragments so chunks roughly correspond to bullet points or short
     paragraphs (resume sections), not single words.
     """
-    # Normalize whitespace
+
     text = re.sub(r"\r\n", "\n", raw_text)
     lines = [l.strip() for l in text.split("\n") if l.strip()]
 
     chunks = []
     buffer = ""
     for line in lines:
-        # Treat lines starting with bullet-like characters as new chunk boundaries
         is_bullet = bool(re.match(r"^[•\-\*\u2022]\s+", line))
         if is_bullet and buffer:
             chunks.append(buffer.strip())
             buffer = line
         else:
             buffer = f"{buffer} {line}".strip() if buffer else line
-        # Cap chunk size so none get too long
         if len(buffer) > 400:
             chunks.append(buffer.strip())
             buffer = ""
@@ -67,8 +54,6 @@ class ResumeVectorStore:
     """
 
     def __init__(self):
-        # Ephemeral client: fine for our use case (one request = one session,
-        # no need to persist across server restarts for the demo).
         self.client = chromadb.EphemeralClient()
         self.collection_name = f"resume_{uuid.uuid4().hex[:8]}"
         self.collection = self.client.create_collection(name=self.collection_name)

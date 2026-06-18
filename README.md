@@ -2,156 +2,38 @@
 
 Agentic resume-to-job-description matching with explainable gap analysis.
 
-Upload a resume and one or more job descriptions. A pipeline of four LangGraph
-agents — **Parser → Retriever → Reasoner → Gap Analyzer** — works through each
-job description in sequence, ranks them by fit, and explains specifically
-what's missing and why.
+Upload a resume and one or more job descriptions. Four LangGraph agents —
+parser, retriever, reasoner, and gap analyzer — run in sequence to rank job
+fit and explain what's missing.
+
+**Live demo:** [trabajo-ai.vercel.app](https://trabajo-ai.vercel.app)
 
 ## Architecture
 
 ```
-Resume + JD  ─▶  Parser Agent     (structures raw text into skills/experience/etc.)
-                       │
-                       ▼
-             Retriever Agent      (RAG: embeds resume into ChromaDB, retrieves
-                       │            chunks most relevant to this JD's requirements)
-                       ▼
-              Reasoner Agent      (scores the match using structured data +
-                       │            retrieved evidence, not just raw text)
-                       ▼
-           Gap Analyzer Agent     (produces categorized, severity-ranked,
-                       │            specific gaps)
-                       ▼
-                Ranked Results
+Resume + JD → Parser Agent → Retriever Agent (RAG) → Reasoner Agent → Gap Analyzer
 ```
 
-Each agent has a distinct responsibility and its own prompt. The graph state
-is passed between them via LangGraph, so each step's structured output feeds
-the next — this is what makes it a genuine multi-agent pipeline rather than
-one long prompt.
-
-The RAG layer is doing real work here: rather than dumping the whole resume
-into every prompt, the resume is chunked into semantic sections and the
-Retriever Agent pulls only the chunks relevant to each JD's specific
-requirements before the Reasoner agent scores the match.
+- **Parser** structures raw resume/JD text into skills, experience, and qualifications.
+- **Retriever** embeds the resume into ChromaDB and retrieves the chunks most relevant to each JD's specific requirements.
+- **Reasoner** scores the match using structured data plus retrieved evidence.
+- **Gap Analyzer** produces categorized, severity-ranked, specific gaps.
 
 ## Stack
 
-- **Orchestration:** LangGraph
-- **LLM:** Groq (Llama 3.3 70B) — free tier
-- **Vector store:** ChromaDB (in-memory, per-request)
-- **Backend:** FastAPI
-- **Frontend:** plain HTML/CSS/JS (no build step)
-
-## Setup
-
-### 1. Install dependencies
-
-```bash
-cd trabajo-ai
-pip install -r requirements.txt
-```
-
-### 2. Get a free Groq API key
-
-Go to [console.groq.com](https://console.groq.com), sign up (free), then
-**API Keys → Create API Key**.
-
-### 3. Configure environment
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-Edit `backend/.env` and paste your key:
-
-```
-GROQ_API_KEY=gsk_your_actual_key_here
-```
-
-### 4. Run the server
-
-```bash
-python -m uvicorn backend.main:app --reload --port 8000
-```
-
-Open **http://localhost:8000** in your browser.
-
-## Usage
-
-1. Upload a resume (PDF).
-2. Paste one or more job descriptions (use "+ Add another job description"
-   for multiple).
-3. Click **Run analysis**.
-4. Results are ranked best-fit-first, each showing: match score, matched vs
-   missing skills, and a categorized gap analysis with severity levels.
+LangGraph · Groq (Llama 3.3 70B) · ChromaDB · FastAPI · vanilla JS frontend
 
 ## Project structure
 
 ```
 trabajo-ai/
-├── backend/
-│   ├── main.py         # FastAPI app, routes
-│   ├── agents.py        # LangGraph pipeline: 4 agents
-│   ├── parser.py        # PDF/text extraction
-│   ├── vectorstore.py    # ChromaDB wrapper (RAG layer)
-│   ├── models.py        # Pydantic schemas
-│   └── .env.example
-├── frontend/
-│   └── index.html       # Single-page UI
-├── requirements.txt
-└── README.md
+├── backend/        # FastAPI app, agent pipeline, RAG layer
+├── frontend/        # Single-page UI
+└── render.yaml      # Backend deployment config
 ```
 
-## Deployment
+## Known limitations
 
-This is set up to run with the backend on **Render** (free tier) and the
-frontend on **GitHub Pages** (free, no sleep). They're on different domains,
-so the frontend needs to know the backend's URL, and the backend needs to
-allow that origin via CORS.
-
-### 1. Deploy the backend on Render
-
-1. Go to [render.com](https://render.com), sign in with GitHub.
-2. **New → Web Service**, connect this repo.
-3. Render should detect `render.yaml` automatically. If not, set manually:
-   - Build command: `pip install -r requirements.txt`
-   - Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-4. Add environment variables in the Render dashboard:
-   - `GROQ_API_KEY` → your Groq key
-   - `ALLOWED_ORIGINS` → `https://nazeef1.github.io` (your GitHub Pages URL — see step 2)
-5. Deploy. Note the backend URL Render gives you (e.g.
-   `https://trabajo-ai-backend.onrender.com`).
-
-**Free tier note:** Render's free web services sleep after 15 minutes of
-inactivity and take ~30-50 seconds to wake up on the next request. This is
-the trade-off for staying free indefinitely — worth mentioning if it comes
-up, since it's a normal real-world hosting trade-off, not a bug.
-
-### 2. Deploy the frontend on GitHub Pages
-
-1. In `frontend/index.html`, set `RENDER_BACKEND_URL` to your actual Render
-   URL from step 1.
-2. Commit and push that change.
-3. On GitHub: repo **Settings → Pages → Source**, select the branch and
-   `/frontend` folder (or move `index.html` to repo root if Pages doesn't
-   support subfolder selection on your plan).
-4. GitHub gives you a URL like `https://nazeef1.github.io/trabajo-ai/`.
-5. Go back to Render and make sure `ALLOWED_ORIGINS` matches this exact URL
-   (no trailing slash).
-
-### 3. Test the live version
-
-Open your GitHub Pages URL, upload a resume, add a JD, and run an analysis.
-The first request after idle time will be slow (cold start) — that's
-expected.
-
-## Notes / known limitations
-
-- Each JD is processed sequentially through the full agent pipeline (4 LLM
-  calls per JD). For many JDs at once, this means noticeable latency —
-  parallelizing across JDs would be a natural next step.
-- Experience-year estimation from resume text is approximate; the Parser
-  Agent infers it rather than relying on explicit date parsing.
-- The vector store is ephemeral and scoped to a single request — nothing is
-  persisted between analyses, by design (no need for it in this use case).
+- JDs are processed sequentially (4 LLM calls each), so multiple JDs add up in latency.
+- Experience-years is an LLM estimate, not parsed from explicit dates.
+- Backend free tier sleeps after inactivity; first request after idle can take ~30-50s.

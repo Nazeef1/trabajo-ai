@@ -1,18 +1,11 @@
 """
 Trabajo AI multi-agent pipeline, built with LangGraph.
-
 Pipeline (per JD, run sequentially as a graph):
-
-  parse_node      -> structures raw resume + JD text into typed fields
+  parse_node       -> structures raw resume + JD text into typed fields
   retrieve_node    -> RAG: pulls the resume chunks most relevant to this JD's
                       requirements from the vector store
   reason_node      -> scores the match using structured data + retrieved context
   gap_node         -> produces a specific, explainable gap analysis
-
-Each node is a distinct responsibility with its own prompt and its own
-slice of the shared graph state — this is what makes it "agentic" rather
-than one long prompt: each step's output is structured and consumed by
-the next, and each step can be inspected/debugged independently.
 """
 import json
 import os

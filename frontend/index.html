@@ -452,9 +452,9 @@
 </div>
 
 <script>
-// Set this to your deployed backend URL once hosted (e.g. on Render).
-// Leave as-is for local development (same-origin, served by FastAPI itself).
-const RENDER_BACKEND_URL = "https://trabajo-ai.onrender.com"; // e.g. "https://trabajo-ai-backend.onrender.com"
+
+
+const RENDER_BACKEND_URL = "https://trabajo-ai.onrender.com";
 const API_BASE = RENDER_BACKEND_URL || window.location.origin;
 
 const dropzone = document.getElementById('dropzone');
@@ -595,9 +595,12 @@ analyzeBtn.addEventListener('click', async () => {
 
   analyzeBtn.disabled = true;
   loader.classList.add('active');
-  loaderText.textContent = `Running agent pipeline across ${jdTexts.length} job description${jdTexts.length > 1 ? 's' : ''}...`;
 
   try {
+    await wakeBackend();
+
+    loaderText.textContent = `Running agent pipeline across ${jdTexts.length} job description${jdTexts.length > 1 ? 's' : ''}...`;
+
     const resp = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
       body: formData,
@@ -618,6 +621,25 @@ analyzeBtn.addEventListener('click', async () => {
     loader.classList.remove('active');
   }
 });
+
+// The free-tier backend sleeps after inactivity and takes ~30-50s to wake on
+// the first request. Ping /health first so we can show an honest "waking up"
+// message instead of a long silent wait during the actual analysis call.
+async function wakeBackend() {
+  loaderText.textContent = 'Connecting to server...';
+  const slowNoticeTimer = setTimeout(() => {
+    loaderText.textContent = "Waking up the backend — this can take up to a minute on the first request after inactivity.";
+  }, 4000);
+
+  try {
+    const resp = await fetch(`${API_BASE}/health`);
+    if (!resp.ok) throw new Error('Backend health check failed.');
+  } catch (err) {
+    throw new Error('Could not reach the backend. It may be temporarily down — try again in a moment.');
+  } finally {
+    clearTimeout(slowNoticeTimer);
+  }
+}
 </script>
 </body>
 </html>
