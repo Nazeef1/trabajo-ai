@@ -103,6 +103,49 @@ trabajo-ai/
 └── README.md
 ```
 
+## Deployment
+
+This is set up to run with the backend on **Render** (free tier) and the
+frontend on **GitHub Pages** (free, no sleep). They're on different domains,
+so the frontend needs to know the backend's URL, and the backend needs to
+allow that origin via CORS.
+
+### 1. Deploy the backend on Render
+
+1. Go to [render.com](https://render.com), sign in with GitHub.
+2. **New → Web Service**, connect this repo.
+3. Render should detect `render.yaml` automatically. If not, set manually:
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+4. Add environment variables in the Render dashboard:
+   - `GROQ_API_KEY` → your Groq key
+   - `ALLOWED_ORIGINS` → `https://nazeef1.github.io` (your GitHub Pages URL — see step 2)
+5. Deploy. Note the backend URL Render gives you (e.g.
+   `https://trabajo-ai-backend.onrender.com`).
+
+**Free tier note:** Render's free web services sleep after 15 minutes of
+inactivity and take ~30-50 seconds to wake up on the next request. This is
+the trade-off for staying free indefinitely — worth mentioning if it comes
+up, since it's a normal real-world hosting trade-off, not a bug.
+
+### 2. Deploy the frontend on GitHub Pages
+
+1. In `frontend/index.html`, set `RENDER_BACKEND_URL` to your actual Render
+   URL from step 1.
+2. Commit and push that change.
+3. On GitHub: repo **Settings → Pages → Source**, select the branch and
+   `/frontend` folder (or move `index.html` to repo root if Pages doesn't
+   support subfolder selection on your plan).
+4. GitHub gives you a URL like `https://nazeef1.github.io/trabajo-ai/`.
+5. Go back to Render and make sure `ALLOWED_ORIGINS` matches this exact URL
+   (no trailing slash).
+
+### 3. Test the live version
+
+Open your GitHub Pages URL, upload a resume, add a JD, and run an analysis.
+The first request after idle time will be slow (cold start) — that's
+expected.
+
 ## Notes / known limitations
 
 - Each JD is processed sequentially through the full agent pipeline (4 LLM

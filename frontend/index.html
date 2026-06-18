@@ -452,7 +452,10 @@
 </div>
 
 <script>
-const API_BASE = window.location.origin;
+// Set this to your deployed backend URL once hosted (e.g. on Render).
+// Leave as-is for local development (same-origin, served by FastAPI itself).
+const RENDER_BACKEND_URL = ""; // e.g. "https://trabajo-ai-backend.onrender.com"
+const API_BASE = RENDER_BACKEND_URL || window.location.origin;
 
 const dropzone = document.getElementById('dropzone');
 const resumeInput = document.getElementById('resumeInput');
