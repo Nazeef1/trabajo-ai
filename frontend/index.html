@@ -452,8 +452,8 @@
 </div>
 
 <script>
-
-
+// Set this to your deployed backend URL once hosted (e.g. on Render).
+// Leave as-is for local development (same-origin, served by FastAPI itself).
 const RENDER_BACKEND_URL = "https://trabajo-ai.onrender.com";
 const API_BASE = RENDER_BACKEND_URL || window.location.origin;
 
@@ -622,20 +622,29 @@ analyzeBtn.addEventListener('click', async () => {
   }
 });
 
-// The free-tier backend sleeps after inactivity and takes ~30-50s to wake on
-// the first request. Ping /health first so we can show an honest "waking up"
-// message instead of a long silent wait during the actual analysis call.
+
 async function wakeBackend() {
   loaderText.textContent = 'Connecting to server...';
+
   const slowNoticeTimer = setTimeout(() => {
-    loaderText.textContent = "Waking up the backend — this can take up to a minute on the first request after inactivity.";
+    loaderText.textContent = "Waking up the backend — this takes up to a minute after inactivity. Hang tight...";
   }, 4000);
 
+  const deadline = Date.now() + 70000; 
+  const retryInterval = 5000;     
+
   try {
-    const resp = await fetch(`${API_BASE}/health`);
-    if (!resp.ok) throw new Error('Backend health check failed.');
-  } catch (err) {
-    throw new Error('Could not reach the backend. It may be temporarily down — try again in a moment.');
+    while (Date.now() < deadline) {
+      try {
+        const resp = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(6000) });
+        if (resp.ok) return;
+      } catch (e) {
+      }
+      if (Date.now() + retryInterval < deadline) {
+        await new Promise(r => setTimeout(r, retryInterval));
+      }
+    }
+    throw new Error('Backend took too long to wake up. Try clicking Run analysis again in a moment.');
   } finally {
     clearTimeout(slowNoticeTimer);
   }
